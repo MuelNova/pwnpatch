@@ -1,0 +1,88 @@
+#!/bin/bash
+
+GLIBC_DIRS="${GLIBC_DIRS:-/usr/share/glibc-all-in-one/libs/}"
+
+# 打印使用方法
+usage() {
+    echo "Usage: $0 -l <directory_name> [-p <patchelf_options>] <elf_file>"
+    echo "Available directory names:"
+    for d in "$GLIBC_DIRS"/*/ ; do
+        if [ -d "$d" ]; then
+            echo "  - $(basename "$d")"
+        fi
+    done
+    exit 1
+}
+
+# 初始化变量
+DIR_NAME=""
+PATCH_ELF_OPTS=""
+ELF_FILE=""
+
+# 检查参数数量
+if [ "$#" -lt 3 ]; then
+    usage
+fi
+
+# 解析参数
+while getopts "l:p:" opt; do
+    case $opt in
+        l)
+            DIR_NAME=$OPTARG
+            ;;
+        p)
+            PATCH_ELF_OPTS=$OPTARG
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+# 获取 ELF 文件参数
+ELF_FILE=$1
+
+# 检查 ELF 文件是否存在
+if [ ! -f "$ELF_FILE" ]; then
+    echo "Error: ELF file '$ELF_FILE' not found."
+    exit 1
+fi
+
+# 获取所有子目录的绝对路径
+SUBDIRS=()
+for d in "$GLIBC_DIRS"/*/ ; do
+    if [ -d "$d" ]; then
+        ABS_PATH=$(realpath "$d")
+        SUBDIRS+=("$ABS_PATH")
+    fi
+done
+
+# 查找指定目录名的绝对路径
+TARGET_DIR=""
+for dir in "${SUBDIRS[@]}"; do
+    if [ "$(basename "$dir")" == "$DIR_NAME" ]; then
+        TARGET_DIR=$dir
+        break
+    fi
+done
+
+# 检查目标目录是否存在
+if [ -z "$TARGET_DIR" ]; then
+    echo "Error: Directory '$DIR_NAME' not found."
+    exit 1
+fi
+
+# 查找目标目录中的 ld-*.so
+LD_SO=$(find "$TARGET_DIR" -maxdepth 1 -name "ld-*.so" | head -n 1)
+
+# 检查 ld-*.so 是否存在
+if [ -z "$LD_SO" ]; then
+    echo "Error: ld-*.so not found in '$TARGET_DIR'."
+    exit 1
+fi
+
+# 使用 patchelf 修改 ELF 文件
+patchelf $PATCH_ELF_OPTS --set-rpath "$TARGET_DIR" --set-interpreter "$LD_SO" "$ELF_FILE"
+
+echo "Patchelf successfully applied to '$ELF_FILE' with rpath '$TARGET_DIR' and interpreter '$LD_SO'."
