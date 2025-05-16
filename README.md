@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/MuelNova/pwnpatch/main/pwnpatch -o 
 curl -fsSL https://raw.githubusercontent.com/MuelNova/pwnpatch/main/pwnpatch.fish -o ~/.config/fish/completions/pwnpatch.fish
 chmod +x ~/.local/bin/pwnpatch
 
-echo "export PATH=$PATH:$HOME/.local/bin" >> ~/.config/fish/config.fish
+echo "set -g PATH \$PATH \$HOME/.local/bin" >> ~/.config/fish/config.fish
 ```
 
 ## Configuration
